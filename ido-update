@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Haalt de nieuwste versie van VIP IDO GOLD AI van GitHub en installeert hem.
-# Gebruik op de server:  ido-update
+# Haalt de nieuwste versie van je bots van GitHub en installeert ze.
+# Gebruik op de server:  ido-update          (alleen als er iets nieuws is)
+#                        ido-update --force  (altijd opnieuw installeren)
 set -Eeuo pipefail
-SRC=/opt/ido-gold-ai-src
 if [[ $EUID -ne 0 ]]; then exec sudo "$0" "$@"; fi
-echo "==> Nieuwste versie ophalen van GitHub"
-git -C "$SRC" fetch --depth 1 origin main
-OLD="$(git -C "$SRC" rev-parse --short HEAD)"
-git -C "$SRC" reset --hard origin/main
-NEW="$(git -C "$SRC" rev-parse --short HEAD)"
-if [[ "$OLD" == "$NEW" && "${1:-}" != "--force" ]]; then
-  echo "Je hebt al de nieuwste versie ($NEW). Niets te doen."
-  exit 0
-fi
-echo "==> Versie $OLD -> $NEW installeren"
-bash "$SRC/install-ubuntu.sh"
-echo "Update klaar: versie $NEW."
+updated=0
+for SRC in /opt/ido-gold-ai-src /opt/ido-aandelen-src; do
+  [[ -d "$SRC/.git" ]] || continue
+  name="$(basename "$SRC" -src)"
+  echo "==> $name: nieuwste versie ophalen"
+  git -C "$SRC" fetch --depth 1 origin main
+  OLD="$(git -C "$SRC" rev-parse --short HEAD)"
+  git -C "$SRC" reset --hard origin/main
+  NEW="$(git -C "$SRC" rev-parse --short HEAD)"
+  if [[ "$OLD" == "$NEW" && "${1:-}" != "--force" ]]; then
+    echo "    al up-to-date ($NEW)"
+    continue
+  fi
+  if [[ -f "$SRC/install-ubuntu.sh" ]]; then bash "$SRC/install-ubuntu.sh"; fi
+  if [[ -f "$SRC/server/install-aandelen.sh" ]]; then bash "$SRC/server/install-aandelen.sh"; fi
+  echo "    $name bijgewerkt: $OLD -> $NEW"
+  updated=1
+done
+[[ $updated -eq 1 ]] && echo "Update klaar." || echo "Niets te doen: alles is al de nieuwste versie."

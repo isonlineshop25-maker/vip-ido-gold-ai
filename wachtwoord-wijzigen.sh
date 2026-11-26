@@ -23,4 +23,9 @@ rm -f "$TMP"
 printf '%s\n' "$P" > /root/ido-gold-ai-wachtwoord.txt
 chmod 600 /root/ido-gold-ai-wachtwoord.txt
 systemctl restart ido-gold-ai
+if [[ -f /etc/ido-aandelen.env ]]; then     # zelfde wachtwoord voor de aandelenbot
+  TMP="$(mktemp)"; grep -v '^IDO_STOCKS_PASSWORD=' /etc/ido-aandelen.env > "$TMP" || true
+  printf 'IDO_STOCKS_PASSWORD=%s\n' "$P" >> "$TMP"; install -m 600 -o root -g root "$TMP" /etc/ido-aandelen.env; rm -f "$TMP"
+  systemctl restart ido-aandelen || true
+fi
 echo "Gelukt! Log op je telefoon één keer in met je nieuwe wachtwoord. Daarna blijf je ingelogd."
