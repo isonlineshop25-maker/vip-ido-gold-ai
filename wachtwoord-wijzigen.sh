@@ -23,7 +23,7 @@ rm -f "$TMP"
 printf '%s\n' "$P" > /root/ido-gold-ai-wachtwoord.txt
 chmod 600 /root/ido-gold-ai-wachtwoord.txt
 systemctl restart ido-gold-ai
-for pair in "ido-aandelen:IDO_STOCKS_PASSWORD" "ido-crypto:IDO_CRYPTO_PASSWORD"; do   # zelfde wachtwoord voor alle bots
+for pair in "ido-aandelen:IDO_STOCKS_PASSWORD" "ido-crypto:IDO_CRYPTO_PASSWORD" "ido-dudu:DUDU_PASSWORD"; do   # zelfde wachtwoord voor alle bots
   svc="${pair%%:*}"; var="${pair##*:}"; f="/etc/$svc.env"
   [[ -f "$f" ]] || continue
   TMP="$(mktemp)"; grep -v "^$var=" "$f" > "$TMP" || true
