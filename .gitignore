@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+ido/state/
+*.sqlite3*
+logins.json
+.env

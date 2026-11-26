@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D0B07">
+<title>VIP IDO GOLD AI</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/vip-ido-192.png">
+<link rel="apple-touch-icon" href="/vip-ido-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --obsidian: #0D0B07;
+  --vault: #18140C;
+  --vault-2: #211B10;
+  --seam: #3A3020;
+  --gold: #E3B54A;
+  --gold-deep: #A8802A;
+  --gold-pale: #F3E3B5;
+  --ivory: #EEE8DA;
+  --muted: #A89F8C;
+  --win: #5FBF8A;
+  --loss: #E0675A;
+  --wait: #8C8472;
+  --radius-bar: 14px;
+  --radius-row: 10px;
+  --display: "Bodoni Moda", "Didot", Georgia, serif;
+  --ui: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--obsidian);
+  color: var(--ivory);
+  font: 400 15px/1.5 var(--ui);
+  -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px 40px; }
+
+/* Top bar */
+.top { display: flex; align-items: center; gap: 12px; padding: 14px 0; }
+.top img { width: 40px; height: 40px; border-radius: 10px; }
+.brand { font-weight: 700; letter-spacing: .02em; line-height: 1.1; }
+.brand small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; letter-spacing: 0; }
+.pill { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 99px;
+  background: var(--vault); border: 1px solid var(--seam); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--wait); }
+.dot.on { background: var(--win); box-shadow: 0 0 0 0 rgba(95,191,138,.6); animation: beat 2s infinite; }
+.dot.alarm { background: var(--loss); }
+@keyframes beat { 70% { box-shadow: 0 0 0 7px rgba(95,191,138,0); } 100% { box-shadow: 0 0 0 0 rgba(95,191,138,0); } }
+
+/* The bullion bar: the one bold element */
+.bar {
+  position: relative; overflow: hidden; border-radius: var(--radius-bar);
+  background: linear-gradient(160deg, #2A2112 0%, #19140B 45%, #120E07 100%);
+  border: 1px solid var(--gold-deep);
+  box-shadow: inset 0 1px 0 rgba(243,227,181,.25), inset 0 -1px 0 rgba(0,0,0,.6);
+  padding: 18px 18px 10px;
+}
+.bar::before { /* stamped inner frame, like a hallmark on a bar */
+  content: ""; position: absolute; inset: 7px; border: 1px solid rgba(227,181,74,.22); border-radius: 9px; pointer-events: none;
+}
+.bar-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.bar-name { color: var(--gold-pale); font-weight: 600; }
+.bar-name span { color: var(--muted); font-weight: 500; }
+.price {
+  font-family: var(--display); font-weight: 700; font-size: clamp(44px, 12vw, 76px); line-height: 1;
+  letter-spacing: -.01em; margin: 10px 0 4px;
+  background: linear-gradient(180deg, #FFF1C6 0%, #E3B54A 55%, #A8802A 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-variant-numeric: lining-nums;
+}
+.change { font-weight: 600; }
+.up { color: var(--win); } .down { color: var(--loss); } .flat { color: var(--muted); }
+.ranges { display: flex; gap: 4px; }
+.ranges button { background: transparent; border: 1px solid var(--seam); border-radius: 8px; padding: 3px 10px; font-size: 13px; cursor: pointer; color: var(--muted); }
+.ranges button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-pale); }
+canvas { display: block; width: 100%; height: 190px; margin-top: 10px; }
+.feed { font-size: 12px; color: var(--muted); margin: 4px 0 4px; }
+
+/* Controls */
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 6px; }
+.btn { border: 1px solid var(--seam); background: var(--vault); border-radius: 12px; padding: 14px; font-weight: 700; cursor: pointer; }
+.btn.go { background: var(--gold); color: #1B1306; border-color: var(--gold); }
+.btn.stop { color: var(--ivory); }
+.btn.panic { grid-column: 1 / -1; background: transparent; color: var(--loss); border-color: rgba(224,103,90,.45); padding: 10px; font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: default; }
+.notice { font-size: 13px; color: var(--muted); min-height: 1.5em; }
+.notice.err { color: var(--loss); }
+
+/* Sections */
+.grid { display: grid; gap: 22px; margin-top: 18px; }
+@media (min-width: 900px) { .grid { grid-template-columns: 1.1fr .9fr; align-items: start; } .span { grid-column: 1 / -1; } }
+h2 { font-size: 17px; margin: 0 0 4px; font-weight: 700; color: var(--gold-pale); }
+.sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; max-width: 62ch; }
+.panel { background: var(--vault); border: 1px solid var(--seam); border-radius: var(--radius-row); }
+
+/* Money ledger */
+.ledger { display: grid; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 560px) { .ledger { grid-template-columns: repeat(3, 1fr); } }
+.ledger div { padding: 12px 14px; border-bottom: 1px solid var(--seam); }
+.ledger dt { font-size: 12.5px; color: var(--muted); }
+.ledger dd { margin: 2px 0 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Decision */
+.decision { padding: 14px; display: flex; gap: 14px; align-items: flex-start; }
+.verdict { font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1; min-width: 86px; }
+.verdict.BUY { color: var(--win); } .verdict.SELL { color: var(--loss); } .verdict.WAIT, .verdict.CLOSE { color: var(--muted); }
+.decision p { margin: 0; }
+.decision time { display: block; color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+
+/* Bot council */
+.bot { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; border-bottom: 1px solid var(--seam); }
+.bot:last-child { border-bottom: 0; }
+.bot-name { font-weight: 700; }
+.bot-role { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
+.vote { font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--seam); align-self: start; }
+.vote.BUY, .vote.PASS { color: var(--win); border-color: rgba(95,191,138,.5); }
+.vote.SELL, .vote.VETO { color: var(--loss); border-color: rgba(224,103,90,.5); }
+.vote.FLAG { color: var(--gold); border-color: rgba(227,181,74,.5); }
+.vote.WAIT, .vote.none { color: var(--muted); }
+.weight { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter { height: 6px; background: var(--vault-2); border-radius: 3px; overflow: hidden; position: relative; }
+.meter i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--gold-deep), var(--gold)); border-radius: 3px; transition: width .6s ease; }
+.meter b { position: absolute; top: -2px; bottom: -2px; left: 40%; width: 1px; background: var(--ivory); opacity: .5; } /* 1.0 = normal weight */
+.evidence { grid-column: 1 / -1; font-size: 13px; color: var(--ivory); opacity: .85; }
+.guards { margin-top: 10px; }
+
+/* Trades */
+.trade { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 12px; padding: 11px 14px; border-bottom: 1px solid var(--seam); font-variant-numeric: tabular-nums; }
+.trade:last-child { border-bottom: 0; }
+.side { font-weight: 700; }
+.side.long { color: var(--win); } .side.short { color: var(--loss); }
+.trade small { grid-column: 2 / -1; color: var(--muted); font-size: 12.5px; }
+.pnl { font-weight: 700; text-align: right; }
+.empty { padding: 16px 14px; color: var(--muted); font-size: 14px; }
+
+.honest { margin-top: 28px; color: var(--muted); font-size: 13px; max-width: 70ch; }
+
+/* Login */
+.login { position: fixed; inset: 0; background: rgba(13,11,7,.96); display: none; place-items: center; padding: 16px; z-index: 5; }
+.login.show { display: grid; }
+.login form { width: min(380px, 100%); text-align: center; }
+.login img { width: 96px; height: 96px; border-radius: 22px; }
+.login h1 { font-family: var(--display); color: var(--gold-pale); font-size: 28px; margin: 14px 0 4px; }
+.login p { color: var(--muted); margin: 0 0 16px; }
+.login input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--seam); background: var(--vault); margin-bottom: 10px; }
+.login .btn { width: 100%; }
+
+/* Readiness meter */
+.ready { margin-top: 18px; padding: 16px; border-radius: var(--radius-bar); border: 1px solid var(--seam); background: var(--vault); }
+.ready.is-ready { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 28px rgba(227,181,74,.18); }
+.ready-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ready-score { font-family: var(--display); font-weight: 700; font-size: 40px; line-height: 1; color: var(--gold-pale); font-variant-numeric: lining-nums; }
+.ready-track { height: 14px; border-radius: 7px; background: var(--vault-2); border: 1px solid var(--seam); overflow: hidden; margin: 12px 0 8px; }
+.ready-track i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-deep), var(--gold), var(--gold-pale)); transition: width .8s ease; }
+.ready-msg { margin: 0 0 6px; font-size: 14px; }
+.checks { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+@media (min-width: 700px) { .checks { grid-template-columns: 1fr 1fr; column-gap: 20px; } }
+.checks li { display: grid; grid-template-columns: 22px 1fr; gap: 2px 8px; padding: 9px 0; border-top: 1px solid var(--seam); align-items: center; }
+.tick { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--seam); display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+.met .tick { background: var(--win); border-color: var(--win); color: #0D0B07; }
+.check-label { font-weight: 600; font-size: 14px; }
+.check-val { grid-column: 2; font-size: 12.5px; color: var(--ivory); opacity: .8; font-variant-numeric: tabular-nums; }
+.check-bar { grid-column: 2 / -1; height: 4px; background: var(--vault-2); border-radius: 2px; overflow: hidden; }
+.check-bar i { display: block; height: 100%; background: var(--gold-deep); }
+.met .check-bar i { background: var(--win); }
+.check-why { grid-column: 2 / -1; font-size: 12.5px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img src="/vip-ido-192.png" alt="">
+    <div class="brand">VIP IDO GOLD AI<small>Demohandel in goud · geen echt geld</small></div>
+    <span class="pill" id="statePill"><span class="dot" id="stateDot"></span><span id="stateText">Laden…</span></span>
+  </header>
+
+  <section class="bar" aria-label="Goudprijs">
+    <div class="bar-head">
+      <div class="bar-name">XAU/USD <span>goud per troy ounce</span></div>
+      <div class="ranges" role="group" aria-label="Periode">
+        <button type="button" data-range="1h" aria-pressed="false">1 uur</button>
+        <button type="button" data-range="1d" aria-pressed="true">1 dag</button>
+        <button type="button" data-range="7d" aria-pressed="false">7 dagen</button>
+      </div>
+    </div>
+    <div class="price" id="price">—</div>
+    <div class="change flat" id="change">Koers ophalen…</div>
+    <canvas id="chart" aria-label="Candlegrafiek van goud" role="img"></canvas>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <div class="controls">
+    <button class="btn go" id="startBtn" type="button">Bot starten</button>
+    <button class="btn stop" id="stopBtn" type="button">Bot stoppen</button>
+    <button class="btn panic" id="panicBtn" type="button">Noodstop: alles direct sluiten</button>
+  </div>
+  <div class="notice" id="notice" role="status"></div>
+
+  <section class="ready" id="ready" aria-labelledby="readyTitle">
+    <div class="ready-head"><h2 id="readyTitle">Klaar voor echt geld?</h2><span class="ready-score" id="readyScore">0%</span></div>
+    <div class="ready-track" role="progressbar" aria-labelledby="readyTitle" aria-valuemin="0" aria-valuemax="100" id="readyBar"><i id="readyFill"></i></div>
+    <p class="ready-msg" id="readyMsg">Meter laden…</p>
+    <ul class="checks" id="readyChecks"></ul>
+  </section>
+
+  <div class="grid">
+    <section>
+      <h2>Je demorekening</h2>
+      <p class="sub">Echte koersen, nepgeld. Alle kosten (spread, kosten, slippage) zijn al afgetrokken.</p>
+      <dl class="panel ledger" id="ledger"></dl>
+    </section>
+
+    <section>
+      <h2>Laatste besluit</h2>
+      <p class="sub">Wat de bots als laatste hebben besloten, en waarom.</p>
+      <div class="panel decision" id="decision"><div class="empty">Nog geen besluit. Start de bot.</div></div>
+    </section>
+
+    <section class="span">
+      <h2>De raad van bots</h2>
+      <p class="sub" id="councilSub">Elke stem wordt 5 minuten later nagekeken. Een stem telt alleen als goed als de koers genoeg bewoog om de kosten terug te verdienen. Wie vaker gelijk heeft, krijgt een zwaardere stem.</p>
+      <div class="panel" id="bots"><div class="empty">Bots laden…</div></div>
+      <div class="panel guards" id="guards"></div>
+    </section>
+
+    <section>
+      <h2>Open posities</h2>
+      <div class="panel" id="open"><div class="empty">Geen open posities.</div></div>
+    </section>
+
+    <section>
+      <h2>Laatste trades</h2>
+      <div class="panel" id="history"><div class="empty">Nog geen afgesloten trades.</div></div>
+    </section>
+  </div>
+
+  <p class="honest">Dit is papertrading: de bot handelt met nepgeld op echte goudkoersen. Winst in demo is geen garantie voor echte winst. Kijk minstens een paar weken naar de resultaten voordat je ooit aan echt geld denkt.</p>
+</div>
+
+<div class="login" id="login">
+  <form id="loginForm">
+    <img src="/vip-ido-512.png" alt="">
+    <h1>VIP IDO GOLD AI</h1>
+    <p>Vul je wachtwoord in om je bot te zien.</p>
+    <input type="password" id="password" autocomplete="current-password" placeholder="Wachtwoord" required minlength="12">
+    <button class="btn go" type="submit">Inloggen</button>
+    <div class="notice err" id="loginError" role="alert"></div>
+  </form>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const usd = (v, sign) => v == null ? "—" : (sign && v > 0 ? "+" : "") + v.toLocaleString("nl-NL", { style: "currency", currency: "USD" });
+const num = (v, d = 2) => v == null ? "—" : v.toLocaleString("nl-NL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const clock = (t) => t ? new Date(t * 1000).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }) : "";
+const stamp = (t) => t ? new Date(t * 1000).toLocaleString("nl-NL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+const tone = (v) => v > 0 ? "up" : v < 0 ? "down" : "flat";
+const VOTE = { BUY: "Kopen", SELL: "Verkopen", WAIT: "Wachten", PASS: "Akkoord", VETO: "Veto", FLAG: "Twijfel", CLOSE: "Sluiten" };
+
+let csrf = null, range = "1d", busy = false;
+
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (opts.body) headers["Content-Type"] = "application/json";
+  if (csrf && opts.method && opts.method !== "GET") headers["X-IDO-CSRF"] = csrf;
+  const res = await fetch("/api/" + path, { ...opts, headers, credentials: "same-origin" });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { showLogin(); throw new Error("Log opnieuw in."); }
+  if (!res.ok) throw new Error(data.error || "Server antwoordt niet (" + res.status + ").");
+  return data;
+}
+
+function showLogin() { $("login").classList.add("show"); $("password").focus(); }
+
+async function session() {
+  const s = await api("auth/session");
+  if (s.required && !s.authenticated) { showLogin(); return false; }
+  csrf = s.csrfToken || null;
+  $("login").classList.remove("show");
+  return true;
+}
+
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("loginError").textContent = "";
+  try {
+    await api("auth/login", { method: "POST", headers: { "X-IDO-Login": "1" }, body: JSON.stringify({ password: $("password").value }) });
+    $("password").value = "";
+    if (await session()) refresh();
+  } catch (err) { $("loginError").textContent = err.message === "Log opnieuw in." ? "Wachtwoord klopt niet." : err.message; }
+});
+
+const ENGINE = {
+  running: ["Bot draait", "on"], stopped: ["Bot staat uit", ""], emergency: ["Noodstop actief", "alarm"],
+  risk_locked: ["Dagverlies bereikt, pauze tot morgen", "alarm"],
+};
+
+function renderDashboard(d) {
+  const [label, cls] = ENGINE[d.engine] || [d.engine, ""];
+  $("stateText").textContent = label;
+  $("stateDot").className = "dot " + cls;
+  $("startBtn").disabled = d.engine === "running";
+  $("stopBtn").disabled = d.engine !== "running";
+  $("panicBtn").textContent = d.engine === "emergency" ? "Noodstop opheffen" : "Noodstop: alles direct sluiten";
+
+  const m = d.metrics || {};
+  const rows = [
+    ["Saldo nu", usd(d.equity), ""],
+    ["Vandaag", usd(d.dailyPnl, true), tone(d.dailyPnl)],
+    ["Totaal resultaat", usd(m.netPnl, true), tone(m.netPnl)],
+    ["Gewonnen trades", m.winRate == null ? "—" : num(m.winRate, 1) + "%", ""],
+    ["Aantal trades", m.trades ?? 0, ""],
+    ["Grootste daling", m.maxDrawdown ? usd(-m.maxDrawdown) : usd(0), m.maxDrawdown ? "down" : ""],
+  ];
+  $("ledger").innerHTML = rows.map(([k, v, c]) => `<div><dt>${k}</dt><dd class="${c}">${esc(v)}</dd></div>`).join("");
+
+  const dec = d.decision;
+  $("decision").innerHTML = dec ? `<div class="verdict ${esc(dec.action)}">${esc(VOTE[dec.action] || dec.action)}</div>
+      <div><p>${esc(dec.reason)}</p><time>${stamp(dec.time)}${dec.model ? " · " + esc(dec.model) : ""}</time></div>`
+    : `<div class="empty">Nog geen besluit. Start de bot.</div>`;
+
+  $("open").innerHTML = d.positions?.length ? d.positions.map(t => `
+    <div class="trade"><span class="side ${t.side}">${t.side === "long" ? "Koop" : "Verkoop"}</span>
+      <span>${num(t.quantity, 3)} oz op ${num(t.entry)}</span><span class="pnl ${tone(t.pnl)}">${usd(t.pnl, true)}</span>
+      <small>Stop ${num(t.stop)} · doel ${num(t.target)} · geopend ${clock(t.openedAt)}</small></div>`).join("")
+    : `<div class="empty">Geen open posities. De bot stapt alleen in als genoeg bots het eens zijn.</div>`;
+
+  const hist = (d.history || []).slice(0, 12);
+  $("history").innerHTML = hist.length ? hist.map(t => `
+    <div class="trade"><span class="side ${t.side}">${t.side === "long" ? "Koop" : "Verkoop"}</span>
+      <span>${num(t.entry)} → ${num(t.exit)}</span><span class="pnl ${tone(t.pnl)}">${usd(t.pnl, true)}</span>
+      <small>${esc(t.reason)} · ${stamp(t.closedAt)} · kosten ${usd(t.costUsd)}</small></div>`).join("")
+    : `<div class="empty">Nog geen afgesloten trades.</div>`;
+
+  const q = d.marketQuote || {};
+  if (q.price != null) $("price").textContent = num(q.price);
+  $("feed").textContent = q.error ? "Koersbron: " + q.error
+    : q.time ? "Laatste koers om " + clock(q.time) + " · bijgewerkt elke paar seconden" : "";
+}
+
+function botRow(b, guard) {
+  const v = b.vote || "none";
+  const weight = guard ? "" : `<div class="weight"><div class="meter" title="Stemgewicht ${num(b.weight)} (normaal = 1,0)">
+        <i style="width:${Math.min(100, (b.weight / 2.5) * 100)}%"></i><b></b></div>
+      <span>${b.scored ? `${num(b.accuracy, 0)}% goed van ${b.scored} · gewicht ${num(b.weight, 1)}` : `nog geen score · gewicht ${num(b.weight, 1)}`}${b.pending ? ` · ${b.pending} in afwachting` : ""}</span></div>`;
+  return `<div class="bot"><span class="bot-name">${esc(b.name)}</span><span class="vote ${esc(v)}">${esc(VOTE[v] || "Geen stem")}</span>
+    <span class="bot-role">${esc(b.role)}</span>${weight}${b.evidence ? `<span class="evidence">${esc(b.evidence)}</span>` : ""}</div>`;
+}
+
+function renderBots(r) {
+  $("bots").innerHTML = r.bots.map(b => botRow(b, false)).join("");
+  $("guards").innerHTML = r.guards.map(b => botRow(b, true)).join("");
+  $("councilSub").textContent = `Elke stem wordt ${r.horizonMinutes} minuten later nagekeken. Een stem telt alleen als goed als de koers genoeg bewoog om de kosten terug te verdienen. Wie vaker gelijk heeft, krijgt een zwaardere stem. Alleen de laatste ${r.windowDays} dagen tellen.`;
+}
+
+function renderReady(r) {
+  $("ready").classList.toggle("is-ready", r.ready);
+  $("readyScore").textContent = r.score + "%";
+  $("readyFill").style.width = r.score + "%";
+  $("readyBar").setAttribute("aria-valuenow", r.score);
+  $("readyMsg").textContent = r.message;
+  $("readyChecks").innerHTML = r.checks.map(c => `<li class="${c.met ? "met" : ""}">
+    <span class="tick" aria-label="${c.met ? "gehaald" : "nog niet gehaald"}">${c.met ? "✓" : ""}</span>
+    <span class="check-label">${esc(c.label)}</span><span class="check-val">${esc(c.value)} · doel: ${esc(c.target)}</span>
+    <span class="check-bar"><i style="width:${Math.round(c.progress * 100)}%"></i></span>
+    <span class="check-why">${esc(c.why)}</span></li>`).join("");
+}
+
+function drawChart(c) {
+  const canvas = $("chart"), ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const bars = (c.candles || []).slice(-90);
+  if (bars.length < 2) {
+    ctx.fillStyle = "#A89F8C"; ctx.font = "13px Manrope, sans-serif";
+    ctx.fillText("Nog te weinig candles voor een grafiek.", 4, h / 2);
+    $("change").className = "change flat"; $("change").textContent = "Grafiek volgt zodra er koersen zijn"; return;
+  }
+  const lo = Math.min(...bars.map(b => b.low)), hi = Math.max(...bars.map(b => b.high));
+  const pad = (hi - lo) * .08 || 1, top = hi + pad, bottom = lo - pad, right = 52;
+  const y = (p) => (top - p) / (top - bottom) * (h - 16) + 4;
+  const step = (w - right) / bars.length, body = Math.max(1, step * .62);
+  ctx.strokeStyle = "rgba(227,181,74,.10)"; ctx.fillStyle = "#A89F8C"; ctx.font = "11px Manrope, sans-serif"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const p = bottom + (top - bottom) * (i / 3), yy = y(p);
+    ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(w - right, yy); ctx.stroke();
+    ctx.fillText(num(p, 0), w - right + 6, yy + 4);
+  }
+  bars.forEach((b, i) => {
+    const x = i * step + step / 2, upBar = b.close >= b.open;
+    ctx.strokeStyle = ctx.fillStyle = upBar ? "#E3B54A" : "#7A6A4A";
+    ctx.beginPath(); ctx.moveTo(x, y(b.high)); ctx.lineTo(x, y(b.low)); ctx.stroke();
+    const y1 = y(Math.max(b.open, b.close)), y2 = y(Math.min(b.open, b.close));
+    ctx.fillRect(x - body / 2, y1, body, Math.max(1, y2 - y1));
+  });
+  (c.trades || []).forEach(t => {
+    const i = bars.findIndex(b => b.time <= t.openedAt && t.openedAt < b.time + c.intervalSeconds);
+    if (i < 0) return;
+    const x = i * step + step / 2, yy = y(t.entry), long = t.side === "long";
+    ctx.fillStyle = long ? "#5FBF8A" : "#E0675A";
+    ctx.beginPath(); ctx.moveTo(x, yy + (long ? 10 : -10)); ctx.lineTo(x - 5, yy + (long ? 18 : -18)); ctx.lineTo(x + 5, yy + (long ? 18 : -18)); ctx.fill();
+  });
+  const first = bars[0].open, last = bars[bars.length - 1].close, diff = last - first;
+  const label = { "1h": "afgelopen uur", "1d": "afgelopen dag", "7d": "afgelopen 7 dagen" }[range];
+  $("change").className = "change " + tone(diff);
+  $("change").textContent = `${diff >= 0 ? "+" : ""}${num(diff)} USD (${diff >= 0 ? "+" : ""}${num(diff / first * 100)}%) ${label}`;
+  if ($("price").textContent === "—") $("price").textContent = num(last);
+}
+
+let lastCandles = null;
+async function loadChart() {
+  try { lastCandles = await api("candles?range=" + range); drawChart(lastCandles); } catch (e) { /* shown via notice */ }
+}
+document.querySelectorAll(".ranges button").forEach(b => b.addEventListener("click", () => {
+  range = b.dataset.range;
+  document.querySelectorAll(".ranges button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  loadChart();
+}));
+window.addEventListener("resize", () => lastCandles && drawChart(lastCandles));
+
+async function engine(action, confirmText) {
+  if (busy || (confirmText && !window.confirm(confirmText))) return;
+  busy = true; $("notice").className = "notice"; $("notice").textContent = "Bezig…";
+  try {
+    renderDashboard(await api("engine", { method: "POST", body: JSON.stringify({ action }) }));
+    loadChart();
+    $("notice").textContent = { start: "Bot gestart.", stop: "Bot gestopt.", emergency_stop: "Noodstop: alles gesloten.", reset_emergency: "Noodstop opgeheven." }[action];
+  } catch (err) { $("notice").className = "notice err"; $("notice").textContent = err.message; }
+  busy = false;
+}
+$("startBtn").addEventListener("click", () => engine("start"));
+$("stopBtn").addEventListener("click", () => engine("stop"));
+$("panicBtn").addEventListener("click", () => $("stateText").textContent === ENGINE.emergency[0]
+  ? engine("reset_emergency") : engine("emergency_stop", "Alle open posities nu sluiten en de bot blokkeren?"));
+
+let tick = 0;
+async function refresh() {
+  try {
+    const [d, b, r] = await Promise.all([api("dashboard"), api("bots"), api("readiness")]);
+    renderDashboard(d); renderBots(b); renderReady(r);
+    if (tick++ % 6 === 0) loadChart();
+    if ($("notice").classList.contains("err") && !busy) { $("notice").className = "notice"; $("notice").textContent = ""; }
+  } catch (err) { if (err.message !== "Log opnieuw in.") { $("notice").className = "notice err"; $("notice").textContent = err.message; } }
+}
+
+(async () => {
+  try { if (await session()) refresh(); } catch (err) { $("notice").className = "notice err"; $("notice").textContent = err.message; }
+  setInterval(() => { if (!$("login").classList.contains("show") && document.visibilityState === "visible") refresh(); }, 5000);
+})();
+</script>
+</body>
+</html>
