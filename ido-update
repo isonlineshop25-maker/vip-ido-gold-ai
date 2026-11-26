@@ -18,7 +18,7 @@ for SRC in /opt/ido-gold-ai-src /opt/ido-aandelen-src; do
     continue
   fi
   if [[ -f "$SRC/install-ubuntu.sh" ]]; then bash "$SRC/install-ubuntu.sh"; fi
-  if [[ -f "$SRC/server/install-aandelen.sh" ]]; then bash "$SRC/server/install-aandelen.sh"; fi
+  for inst in "$SRC"/server/install-*.sh; do [[ -f "$inst" ]] && bash "$inst"; done
   echo "    $name bijgewerkt: $OLD -> $NEW"
   updated=1
 done
