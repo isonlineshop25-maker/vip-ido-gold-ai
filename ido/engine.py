@@ -405,7 +405,7 @@ def evaluate(db, sid, state, positions, market, now):
             coordinator.remove(db, waiting)
         else:
             remote = bool(advice_bars and getattr(market, "agent_remote", False))
-            context = dict(weights=scores.weights(db, sid, provider, now),
+            context = dict(learning=True, weights=scores.weights(db, sid, provider, now),
                            hours=market.strategy_hours(provider, cutoff) if quote["fresh"] else [])
             job = coordinator.prepare(provider, advice_bars, proposed, risk_input, now, quote, remote, context)
             if remote and not guard:

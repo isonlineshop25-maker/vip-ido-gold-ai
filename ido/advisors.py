@@ -261,7 +261,7 @@ def skeptic(bars, proposal):
     return vote("skeptic", "PASS", "high", "Geen sterke tegenbeweging, afwijzingswick of uitgerekte koers in deze drie toetsen.")
 
 
-def recommend(proposed, votes):
+def recommend(proposed, votes, learning=False):
     directional = [v for v in votes if v["agent"] in DIRECTIONAL]
     buy, sell, wait = ([v["vote"] for v in directional].count(s) for s in ("BUY", "SELL", "WAIT"))
     risk_vote = next(v["vote"] for v in votes if v["agent"] == "risk")
@@ -275,8 +275,12 @@ def recommend(proposed, votes):
     supporters = [v for v in directional if v["vote"] == proposed]
     support = sum(v.get("weight", 1.0) for v in supporters)
     oppose = sum(v.get("weight", 1.0) for v in directional if v["vote"] == against)
-    if len(supporters) < 2 or support < MIN_SUPPORT_WEIGHT:
-        return "WAIT", f"Te weinig steun: {len(supporters)} bots, stemgewicht {support:.1f} (minimaal 2 bots en 2.0).", buy, sell, wait
+    # Learning (paper trading): "two average bots" instead of a fixed 2.0: bots with a poor track record sit at the weight floor, and a fixed
+    # threshold would then make a trade impossible however many of them agree. With default weights (1.0) this is still 2.0.
+    average = sum(v.get("weight", 1.0) for v in directional) / len(directional) if directional else 1.0
+    need = MIN_SUPPORT_WEIGHT * min(1.0, average) if learning else MIN_SUPPORT_WEIGHT
+    if len(supporters) < 2 or support < need:
+        return "WAIT", f"Te weinig steun: {len(supporters)} bots, stemgewicht {support:.1f} (minimaal 2 bots en {need:.1f}).", buy, sell, wait
     if oppose > MAX_OPPOSE_SHARE * support:
         return "WAIT", f"Te veel tegenstemmen: gewicht {oppose:.1f} tegen {support:.1f}.", buy, sell, wait
     big = next((v for v in directional if v["agent"] == "bigtrend"), None)
@@ -296,7 +300,7 @@ def assess(bars, proposed, inputs, now, quote_time, context=None):
     for v in votes:
         if v["agent"] in DIRECTIONAL:
             v["weight"] = round(float(weights.get(v["agent"], 1.0)), 2)
-    action, reason, buy, sell, wait = recommend(proposed, votes)
+    action, reason, buy, sell, wait = recommend(proposed, votes, bool(context.get("learning")))
     return dict(version=POLICY, time=now, quoteTime=quote_time,
                 candleTime=bars[-1].time if bars else None, candlesUsed=len(bars),
                 proposed=proposed, recommendation=action, executed=False, reason=reason,

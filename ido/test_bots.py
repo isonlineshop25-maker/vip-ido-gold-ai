@@ -50,6 +50,7 @@ class NewBotTests(unittest.TestCase):
         self.assertEqual(recommend("BUY", strong + base)[0], "BUY")
         weak = [vote("trend", "BUY", "high", "", 0.6), vote("momentum", "BUY", "high", "", 0.6)]
         self.assertEqual(recommend("BUY", weak + base)[0], "WAIT")
+        self.assertEqual(recommend("BUY", weak + base, learning=True)[0], "BUY")   # paper learning: two bots are enough
         against = strong + [vote("bigtrend", "SELL", "medium", "", 0.2)]
         self.assertEqual(recommend("BUY", against + base)[0], "WAIT")
 
