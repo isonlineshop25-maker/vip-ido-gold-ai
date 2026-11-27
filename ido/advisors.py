@@ -231,7 +231,20 @@ def _drift(closes):
     return (sum(moves), sum(moves) / total if total else 0)
 
 
-def bigtrend(hours):
+def _timing(bars):
+    """Direction of the last minutes: 'up', 'down' or None."""
+    if len(bars) < 12:
+        return None
+    closes = [b.close for b in bars]
+    avg = mean(closes[-10:])
+    if closes[-1] > avg and closes[-1] > closes[-2]:
+        return "up"
+    if closes[-1] < avg and closes[-1] < closes[-2]:
+        return "down"
+    return None
+
+
+def bigtrend(hours, bars=None):
     """The bigger picture: closed H1 candles and the 4-hour direction must agree."""
     hours = [h for h in (hours or [])][-13:]
     if len(hours) < 13 or any(b["time"] - a["time"] != 3600 for a, b in zip(hours, hours[1:])):
@@ -245,6 +258,9 @@ def bigtrend(hours):
     if not (up or down):
         return vote("bigtrend", "WAIT", "low", f"Uur- en 4-uurrichting niet gelijk (6u {h1_move:+.2f}, 12u {h4_move:+.2f} USD).")
     checks = 2 + (abs(h4_eff) >= .5)
+    # practice mode only: this slow signal votes when the minute chart agrees, so its score reflects timing, not just mood
+    if bars is not None and _timing(bars) != ("up" if up else "down"):
+        return vote("bigtrend", "WAIT", "low", f"Grote trend {'omhoog' if up else 'omlaag'}, maar de koers beweegt nu niet mee: wacht op het moment.")
     return vote("bigtrend", "BUY" if up else "SELL", strength(checks),
                 f"Grote trend {'omhoog' if up else 'omlaag'}: 6 uur {h1_move:+.2f}, 12 uur {h4_move:+.2f} USD.")
 
@@ -328,7 +344,7 @@ def assess(bars, proposed, inputs, now, quote_time, context=None):
     context = context or {}
     weights = context.get("weights") or {}
     votes = [trend(bars), momentum(bars), volatility(bars), candle(bars), breakout(bars),
-             pullback(bars), spike(bars), session(bars, now), bigtrend(context.get("hours")), risk(bars, inputs), skeptic(bars, proposed)]
+             pullback(bars), spike(bars), session(bars, now), bigtrend(context.get("hours"), bars if context.get("learning") else None), risk(bars, inputs), skeptic(bars, proposed)]
     for v in votes:
         if v["agent"] in DIRECTIONAL:
             v["weight"] = round(float(weights.get(v["agent"], 1.0)), 2)

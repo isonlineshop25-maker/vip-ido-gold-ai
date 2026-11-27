@@ -67,3 +67,15 @@ class NewBotTests(unittest.TestCase):
         self.assertEqual(pullback(self.bars(closes))["vote"], "BUY")
         flat = [3500.0] * 20
         self.assertEqual(pullback(self.bars(flat))["vote"], "WAIT")
+
+
+class BigTrendTimingTests(unittest.TestCase):
+    def test_practice_mode_waits_for_the_minute_chart(self):
+        from advisors import bigtrend
+        hours = [dict(time=i * 3600, open=3000 + i * 5, high=3000 + i * 5 + 6, low=3000 + i * 5 - 1, close=3000 + i * 5 + 5) for i in range(13)]
+        bar = lambda i, c: Bar(1_800_000_000 + i * 60, c, c + .3, c - .3, c)
+        falling = tuple(bar(i, 3100 - i * .5) for i in range(30))
+        rising = tuple(bar(i, 3100 + i * .5) for i in range(30))
+        self.assertEqual(bigtrend(hours)["vote"], "BUY")                  # strict: unchanged
+        self.assertEqual(bigtrend(hours, rising)["vote"], "BUY")
+        self.assertEqual(bigtrend(hours, falling)["vote"], "WAIT")
