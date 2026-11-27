@@ -1,0 +1,23 @@
+plugins { id "com.android.application" }
+
+def appUrl  = project.findProperty("appUrl")  ?: "https://46-101-189-172.sslip.io"
+def appName = project.findProperty("appName") ?: "VIP IDO GOLD"
+def appId   = project.findProperty("appId")   ?: "nl.ido.gold"
+
+android {
+    namespace "nl.ido.app"
+    compileSdk 34
+    defaultConfig {
+        applicationId appId
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        resValue "string", "app_name", appName
+        resValue "string", "app_url", appUrl
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
