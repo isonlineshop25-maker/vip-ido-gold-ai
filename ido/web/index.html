@@ -81,7 +81,7 @@ button, input { font: inherit; color: inherit; }
 .ranges { display: flex; gap: 4px; }
 .ranges button { background: transparent; border: 1px solid var(--seam); border-radius: 8px; padding: 3px 10px; font-size: 13px; cursor: pointer; color: var(--muted); }
 .ranges button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-pale); }
-canvas { display: block; width: 100%; height: 190px; margin-top: 10px; }
+canvas { display: block; width: 100%; height: 250px; margin-top: 10px; }
 .feed { font-size: 12px; color: var(--muted); margin: 4px 0 4px; }
 
 /* Controls */
@@ -400,41 +400,78 @@ function drawChart(c) {
   const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
   canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  const bars = (c.candles || []).slice(-90);
+  const bars = (c.candles || []).slice(-90).map(b => ({ ...b }));
   if (bars.length < 2) {
     ctx.fillStyle = "#A89F8C"; ctx.font = "13px Manrope, sans-serif";
     ctx.fillText("Nog te weinig candles voor een grafiek.", 4, h / 2);
     $("change").className = "change flat"; $("change").textContent = "Grafiek volgt zodra er koersen zijn"; return;
   }
-  const lo = Math.min(...bars.map(b => b.low)), hi = Math.max(...bars.map(b => b.high));
-  const pad = (hi - lo) * .08 || 1, top = hi + pad, bottom = lo - pad, right = 52;
+  // the newest candle follows the live price, so the chart moves between refreshes
+  const live = lastPrice != null && Math.abs(lastPrice - bars[bars.length - 1].close) < bars[bars.length - 1].close * 0.05 ? lastPrice : null;
+  if (live != null) { const l = bars[bars.length - 1]; l.close = live; l.high = Math.max(l.high, live); l.low = Math.min(l.low, live); }
+  const open = (c.trades || []).filter(t => !t.closedAt);
+  let lo = Math.min(...bars.map(b => b.low)), hi = Math.max(...bars.map(b => b.high));
+  open.forEach(t => { [t.entry, t.stop, t.target].forEach(p => { if (p) { lo = Math.min(lo, p); hi = Math.max(hi, p); } }); });
+  const pad = (hi - lo) * .08 || 1, top = hi + pad, bottom = lo - pad, right = 58;
   const y = (p) => (top - p) / (top - bottom) * (h - 16) + 4;
-  const step = (w - right) / bars.length, body = Math.max(1, step * .62);
-  ctx.strokeStyle = "rgba(227,181,74,.10)"; ctx.fillStyle = "#A89F8C"; ctx.font = "11px Manrope, sans-serif"; ctx.lineWidth = 1;
+  const step = (w - right) / bars.length, body = Math.max(1.5, step * .62);
+  const WIN = "#5FBF8A", LOSS = "#E0675A", GOLD = "#E3B54A";
+  ctx.font = "11px Manrope, sans-serif"; ctx.lineWidth = 1;
+  // grid + price labels
   for (let i = 0; i <= 3; i++) {
     const p = bottom + (top - bottom) * (i / 3), yy = y(p);
-    ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(w - right, yy); ctx.stroke();
-    ctx.fillText(num(p, 0), w - right + 6, yy + 4);
+    ctx.strokeStyle = "rgba(227,181,74,.10)"; ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(w - right, yy); ctx.stroke();
+    ctx.fillStyle = "#A89F8C"; ctx.fillText(num(p, 0), w - right + 6, yy + 4);
   }
+  // soft glow under the price line
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, "rgba(227,181,74,.22)"); grad.addColorStop(1, "rgba(227,181,74,0)");
+  ctx.beginPath(); bars.forEach((b, i) => { const x = i * step + step / 2; i ? ctx.lineTo(x, y(b.close)) : ctx.moveTo(x, y(b.close)); });
+  ctx.lineTo((bars.length - .5) * step, h); ctx.lineTo(step / 2, h); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+  // candles: green up, red down
   bars.forEach((b, i) => {
     const x = i * step + step / 2, upBar = b.close >= b.open;
-    ctx.strokeStyle = ctx.fillStyle = upBar ? "#E3B54A" : "#7A6A4A";
+    ctx.strokeStyle = ctx.fillStyle = upBar ? WIN : LOSS;
     ctx.beginPath(); ctx.moveTo(x, y(b.high)); ctx.lineTo(x, y(b.low)); ctx.stroke();
     const y1 = y(Math.max(b.open, b.close)), y2 = y(Math.min(b.open, b.close));
-    ctx.fillRect(x - body / 2, y1, body, Math.max(1, y2 - y1));
+    ctx.fillRect(x - body / 2, y1, body, Math.max(1.5, y2 - y1));
   });
+  // open positions: entry, stop and target lines
+  const tag = (text, yy, color) => {
+    ctx.font = "600 10.5px Manrope, sans-serif"; const tw = ctx.measureText(text).width + 8;
+    ctx.fillStyle = color; ctx.fillRect(w - right + 2, yy - 8, tw, 16); ctx.fillStyle = "#14100A"; ctx.fillText(text, w - right + 6, yy + 4);
+  };
+  open.forEach(t => {
+    [[t.stop, LOSS, "stop"], [t.target, WIN, "doel"], [t.entry, GOLD, t.side === "long" ? "koop" : "verkoop"]].forEach(([p, col, label]) => {
+      if (!p) return; const yy = y(p);
+      ctx.strokeStyle = col; ctx.setLineDash(label === (t.side === "long" ? "koop" : "verkoop") ? [] : [5, 4]); ctx.globalAlpha = .75;
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(w - right, yy); ctx.stroke(); ctx.globalAlpha = 1; ctx.setLineDash([]);
+      tag(label, yy, col);
+    });
+  });
+  // every buy / sell of the bot
   (c.trades || []).forEach(t => {
     const i = bars.findIndex(b => b.time <= t.openedAt && t.openedAt < b.time + c.intervalSeconds);
     if (i < 0) return;
-    const x = i * step + step / 2, yy = y(t.entry), long = t.side === "long";
-    ctx.fillStyle = long ? "#5FBF8A" : "#E0675A";
-    ctx.beginPath(); ctx.moveTo(x, yy + (long ? 10 : -10)); ctx.lineTo(x - 5, yy + (long ? 18 : -18)); ctx.lineTo(x + 5, yy + (long ? 18 : -18)); ctx.fill();
+    const x = i * step + step / 2, yy = y(t.entry), long = t.side === "long", dir = long ? 1 : -1;
+    ctx.globalAlpha = t.closedAt ? .65 : 1; ctx.fillStyle = long ? WIN : LOSS;
+    ctx.beginPath(); ctx.moveTo(x, yy + dir * 5); ctx.lineTo(x - 7, yy + dir * 17); ctx.lineTo(x + 7, yy + dir * 17); ctx.fill();
+    ctx.fillStyle = "#14100A"; ctx.font = "700 9px Manrope, sans-serif"; ctx.textAlign = "center"; ctx.fillText(long ? "K" : "V", x, yy + dir * 14.5 + 3); ctx.textAlign = "left";
+    ctx.globalAlpha = 1;
   });
-  const first = bars[0].open, last = bars[bars.length - 1].close, diff = last - first;
+  // live price: dashed line, price tag and a pulsing dot on the newest candle
+  const last = bars[bars.length - 1], prev = bars[bars.length - 2], lx = (bars.length - .5) * step, ly = y(last.close);
+  const col = last.close >= prev.close ? WIN : LOSS;
+  ctx.strokeStyle = col; ctx.globalAlpha = .6; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(w - right, ly); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  if (!open.some(t => Math.abs(y(t.entry) - ly) < 12)) tag(num(last.close), ly, col);
+  const pulse = (Date.now() % 1400) / 1400;
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(lx, ly, 3.2, 0, 7); ctx.fill();
+  ctx.strokeStyle = col; ctx.globalAlpha = 1 - pulse; ctx.beginPath(); ctx.arc(lx, ly, 3.2 + pulse * 9, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+  const first = bars[0].open, diff = last.close - first;
   const label = { "1h": "afgelopen uur", "1d": "afgelopen dag", "7d": "afgelopen 7 dagen" }[range];
   $("change").className = "change " + tone(diff);
   $("change").textContent = `${diff >= 0 ? "+" : ""}${num(diff)} USD (${diff >= 0 ? "+" : ""}${num(diff / first * 100)}%) ${label}`;
-  if ($("price").textContent === "—") $("price").textContent = num(last);
+  if ($("price").textContent === "—") $("price").textContent = num(last.close);
 }
 
 let lastCandles = null;
@@ -447,6 +484,9 @@ document.querySelectorAll(".ranges button").forEach(b => b.addEventListener("cli
   loadChart();
 }));
 window.addEventListener("resize", () => lastCandles && drawChart(lastCandles));
+// gentle animation: the live dot pulses and the newest candle follows the price (about 8 frames a second, only while visible)
+if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+  setInterval(() => { if (lastCandles && document.visibilityState === "visible" && !$("login").classList.contains("show")) drawChart(lastCandles); }, 120);
 
 async function engine(action, confirmText) {
   if (busy || (confirmText && !window.confirm(confirmText))) return;
@@ -468,7 +508,7 @@ async function refresh() {
   try {
     const [d, b, r] = await Promise.all([api("dashboard"), api("bots"), api("readiness")]);
     renderDashboard(d); renderBots(b); renderReady(r);
-    if (tick++ % 10 === 0) loadChart();
+    if (tick++ % 3 === 0) loadChart();
     if ($("notice").classList.contains("err") && !busy) { $("notice").className = "notice"; $("notice").textContent = ""; }
   } catch (err) { if (err.message !== "Log opnieuw in.") { $("notice").className = "notice err"; $("notice").textContent = err.message; } }
 }
