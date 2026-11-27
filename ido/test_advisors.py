@@ -1,6 +1,6 @@
 import unittest
 
-from advisors import Risk, assess, causal_bars, recommend, vote
+from advisors import Bar, Risk, assess, causal_bars, recommend, vote
 
 
 class AdvisorTests(unittest.TestCase):
@@ -16,7 +16,7 @@ class AdvisorTests(unittest.TestCase):
     def test_disagreement_is_not_hidden(self):
         bars = causal_bars(self.candles(), self.t, self.t, True)
         report = assess(bars, "WAIT", self.risk, self.t, self.t)
-        self.assertEqual(len(report["votes"]), 9)
+        self.assertEqual(len(report["votes"]), 11)
         self.assertEqual(report["votes"][0]["vote"], "BUY")
         self.assertEqual(report["votes"][1]["vote"], "WAIT")
         self.assertEqual(report["recommendation"], "WAIT")
@@ -47,3 +47,23 @@ class AdvisorTests(unittest.TestCase):
         self.assertEqual(recommend("BUY", block)[0], "BUY")
         block[2] = vote("volatility","SELL","medium","")
         self.assertEqual(recommend("BUY", block)[0], "WAIT")
+
+
+class NewBotTests(unittest.TestCase):
+    def bars(self, closes, wide=0.3):
+        return tuple(Bar(1_800_000_000 + i * 60, c, c + wide, c - wide, c) for i, c in enumerate(closes))
+
+    def test_spike_follows_a_strong_close_only(self):
+        from advisors import spike, pullback
+        calm = self.bars([3500 + (i % 2) * 0.2 for i in range(20)])
+        self.assertEqual(spike(calm)["vote"], "WAIT")
+        jump = list(calm[:-3]) + [Bar(1, 3500, 3503, 3499.9, 3502.9), Bar(2, 3502.9, 3506, 3502.8, 3505.9), Bar(3, 3505.9, 3509, 3505.8, 3508.9)]
+        self.assertEqual(spike(tuple(jump))["vote"], "BUY")
+        self.assertEqual(spike(calm[:5])["confidence"], "none")
+
+    def test_pullback_buys_a_recovering_dip(self):
+        from advisors import pullback
+        closes = [3500 + i * 0.5 for i in range(17)] + [3507.0, 3506.0, 3507.5]
+        self.assertEqual(pullback(self.bars(closes))["vote"], "BUY")
+        flat = [3500.0] * 20
+        self.assertEqual(pullback(self.bars(flat))["vote"], "WAIT")

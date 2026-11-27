@@ -101,7 +101,7 @@ class ScoreTests(unittest.TestCase):
 
     def test_report_shape(self):
         r = scores.report(self.db, "a", "gold", self.t)
-        self.assertEqual(len(r["bots"]), 7)
+        self.assertEqual(len(r["bots"]), 9)
         self.assertEqual({g["agent"] for g in r["guards"]}, {"risk", "skeptic"})
 
 

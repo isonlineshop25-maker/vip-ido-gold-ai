@@ -6,10 +6,10 @@ from statistics import mean, median
 POLICY = "panel-discussion-3.0"
 VERSIONS = {"trend": "structure-1.0", "momentum": "rsi-roc-1.0",
             "volatility": "range-shape-1.0", "candle": "patterns-1.0", "breakout": "channel-1.0",
-            "session": "london-ny-1.0", "bigtrend": "h1-h4-1.0",
+            "pullback": "dip-1.0", "spike": "burst-1.0", "session": "london-ny-1.0", "bigtrend": "h1-h4-1.0",
             "risk": "paper-limits-1.0", "skeptic": "countercheck-1.0"}
 # Bots that vote for a direction. Their weight comes from their own scored track record.
-DIRECTIONAL = ("trend", "momentum", "volatility", "candle", "breakout", "session", "bigtrend")
+DIRECTIONAL = ("trend", "momentum", "volatility", "candle", "breakout", "pullback", "spike", "session", "bigtrend")
 MIN_SUPPORT_WEIGHT = 2.0
 MAX_OPPOSE_SHARE = 0.4
 
@@ -88,6 +88,38 @@ def momentum(bars):
     action = "BUY" if up >= 2 and 50 < rsi <= 80 else "SELL" if down >= 2 and 20 <= rsi < 50 else "WAIT"
     return vote("momentum", action, strength(max(up, down)) if action != "WAIT" else "low",
                 f"RSI(14) {rsi:.1f}; koersverandering 5/10 min {roc5:+.2f}/{roc10:+.2f} USD.")
+
+
+def pullback(bars):
+    if len(bars) < 20:
+        return insufficient("pullback", len(bars), 20)
+    closes = [b.close for b in bars[-20:]]
+    old, new = mean(closes[:10]), mean(closes[10:])
+    dip = closes[-3] - closes[-5]
+    if new > old and dip < 0 and closes[-1] > closes[-2]:
+        return vote("pullback", "BUY", "medium", f"Stijgende lijn ({new-old:+.2f} USD) met een dipje ({dip:+.2f}) dat nu herstelt.")
+    if new < old and dip > 0 and closes[-1] < closes[-2]:
+        return vote("pullback", "SELL", "medium", f"Dalende lijn ({new-old:+.2f} USD) met een opveer ({dip:+.2f}) die nu terugzakt.")
+    return vote("pullback", "WAIT", "low", f"Geen dipje om op in te stappen (lijn {new-old:+.2f} USD).")
+
+
+def spike(bars):
+    if len(bars) < 15:
+        return insufficient("spike", len(bars), 15)
+    base = ranges(bars[:-3])
+    avg = mean(base) if base else 0
+    last3 = bars[-3:]
+    move = last3[-1].close - last3[0].open
+    top, bottom = max(b.high for b in last3), min(b.low for b in last3)
+    span = top - bottom
+    if not avg or not span or abs(move) < 2.5 * avg:
+        return vote("spike", "WAIT", "low", f"Rustige koers: {move:+.2f} USD in 3 minuten.")
+    place = (last3[-1].close - bottom) / span
+    if move > 0 and place >= 0.7:
+        return vote("spike", "BUY", "medium", f"Plotselinge stijging {move:+.2f} USD in 3 minuten, sluit dicht bij de top.")
+    if move < 0 and place <= 0.3:
+        return vote("spike", "SELL", "medium", f"Plotselinge daling {move:+.2f} USD in 3 minuten, sluit dicht bij de bodem.")
+    return vote("spike", "WAIT", "low", "Plotselinge beweging, maar de candle sluit zwak: niet meegaan.")
 
 
 def ranges(bars):
@@ -296,7 +328,7 @@ def assess(bars, proposed, inputs, now, quote_time, context=None):
     context = context or {}
     weights = context.get("weights") or {}
     votes = [trend(bars), momentum(bars), volatility(bars), candle(bars), breakout(bars),
-             session(bars, now), bigtrend(context.get("hours")), risk(bars, inputs), skeptic(bars, proposed)]
+             pullback(bars), spike(bars), session(bars, now), bigtrend(context.get("hours")), risk(bars, inputs), skeptic(bars, proposed)]
     for v in votes:
         if v["agent"] in DIRECTIONAL:
             v["weight"] = round(float(weights.get(v["agent"], 1.0)), 2)

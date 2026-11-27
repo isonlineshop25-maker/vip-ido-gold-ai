@@ -16,7 +16,7 @@ MIN_WEIGHT, MAX_WEIGHT = 0.2, 2.0
 
 NAMES = {
     "trend": "Trendbot", "momentum": "Momentumbot", "volatility": "Volatiliteitsbot",
-    "candle": "Candlelezer", "breakout": "Uitbraakbot", "session": "Sessiebot", "bigtrend": "Grote-trendbot",
+    "candle": "Candlelezer", "breakout": "Uitbraakbot", "pullback": "Dipbot", "spike": "Spikebot", "session": "Sessiebot", "bigtrend": "Grote-trendbot",
     "risk": "Risicobewaker", "skeptic": "Scepticus",
 }
 ROLES = {
@@ -25,6 +25,8 @@ ROLES = {
     "volatility": "Grote candles die door de vorige toppen of bodems breken.",
     "candle": "Leest candlepatronen: engulfing, hamer, shooting star, doji, bij steun of weerstand.",
     "breakout": "Uitbraak uit het kanaal van de laatste 8 minuten.",
+    "pullback": "Koopt een klein dipje in een stijgende lijn (en andersom) zodra de koers herstelt.",
+    "spike": "Gaat mee met een plotselinge sterke beweging van de laatste 3 minuten.",
     "session": "Handelt alleen mee als Londen of New York open is.",
     "bigtrend": "Uur- en 4-uurgrafiek: nooit tegen de grote trend in.",
     "risk": "Harde grenzen: kosten, stop-loss, dagverlies. Kan alles blokkeren.",
