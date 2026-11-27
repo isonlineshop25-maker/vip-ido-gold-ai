@@ -106,7 +106,11 @@ h2 { font-size: 17px; margin: 0 0 4px; font-weight: 700; color: var(--gold-pale)
 @media (min-width: 560px) { .ledger { grid-template-columns: repeat(3, 1fr); } }
 .ledger div { padding: 12px 14px; border-bottom: 1px solid var(--seam); }
 .ledger dt { font-size: 12.5px; color: var(--muted); }
-.ledger dd { margin: 2px 0 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ledger dd { margin: 2px 0 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; border-radius: 4px; }
+.ledger .live dt::after { content: " · live"; color: var(--win); }
+.flash-up { animation: flashUp 1.2s ease-out; } .flash-down { animation: flashDown 1.2s ease-out; }
+@keyframes flashUp { from { background: rgba(95,191,138,.35); } to { background: transparent; } }
+@keyframes flashDown { from { background: rgba(224,103,90,.35); } to { background: transparent; } }
 
 /* Decision */
 .decision { padding: 14px; display: flex; gap: 14px; align-items: flex-start; }
@@ -307,6 +311,8 @@ const ENGINE = {
   risk_locked: ["Dagverlies bereikt, pauze tot morgen", "alarm"],
 };
 
+let lastLedger = [];
+let lastPrice = null;
 function renderDashboard(d) {
   const [label, cls] = ENGINE[d.engine] || [d.engine, ""];
   $("stateText").textContent = label;
@@ -316,15 +322,22 @@ function renderDashboard(d) {
   $("panicBtn").textContent = d.engine === "emergency" ? "Noodstop opheffen" : "Noodstop: alles direct sluiten";
 
   const m = d.metrics || {};
+  const openPnl = (d.positions || []).reduce((s, t) => s + (t.pnl || 0), 0);
   const rows = [
-    ["Saldo nu", usd(d.equity), ""],
+    ["Saldo nu", usd(d.equity), "", d.equity],
+    ["Open trade nu", d.positions?.length ? usd(openPnl, true) : "geen", d.positions?.length ? tone(openPnl) : "", d.positions?.length ? openPnl : null],
     ["Vandaag", usd(d.dailyPnl, true), tone(d.dailyPnl)],
     ["Totaal resultaat", usd(m.netPnl, true), tone(m.netPnl)],
     ["Gewonnen trades", m.winRate == null ? "—" : num(m.winRate, 1) + "%", ""],
     ["Aantal trades", m.trades ?? 0, ""],
     ["Grootste daling", m.maxDrawdown ? usd(-m.maxDrawdown) : usd(0), m.maxDrawdown ? "down" : ""],
   ];
-  $("ledger").innerHTML = rows.map(([k, v, c]) => `<div><dt>${k}</dt><dd class="${c}">${esc(v)}</dd></div>`).join("");
+  $("ledger").innerHTML = rows.map(([k, v, c, raw], i) => {
+    const prev = lastLedger[i]; let fx = "";
+    if (raw != null && prev != null && raw !== prev) fx = raw > prev ? " flash-up" : " flash-down";
+    return `<div${i < 2 && raw != null ? ' class="live"' : ""}><dt>${k}</dt><dd class="${c}${fx}">${esc(v)}</dd></div>`;
+  }).join("");
+  lastLedger = rows.map(r => r[3] ?? null);
 
   const dec = d.decision;
   $("decision").innerHTML = dec ? `<div class="verdict ${esc(dec.action)}">${esc(VOTE[dec.action] || dec.action)}</div>
@@ -345,7 +358,11 @@ function renderDashboard(d) {
     : `<div class="empty">Nog geen afgesloten trades.</div>`;
 
   const q = d.marketQuote || {};
-  if (q.price != null) $("price").textContent = num(q.price);
+  if (q.price != null) {
+    $("price").textContent = num(q.price);
+    if (lastPrice != null && q.price !== lastPrice) { const el = $("price"); el.classList.remove("flash-up", "flash-down"); void el.offsetWidth; el.classList.add(q.price > lastPrice ? "flash-up" : "flash-down"); }
+    lastPrice = q.price;
+  }
   $("feed").textContent = q.error ? "Koersbron: " + q.error
     : q.time ? "Laatste koers om " + clock(q.time) + " · bijgewerkt elke paar seconden" : "";
 }
@@ -451,14 +468,14 @@ async function refresh() {
   try {
     const [d, b, r] = await Promise.all([api("dashboard"), api("bots"), api("readiness")]);
     renderDashboard(d); renderBots(b); renderReady(r);
-    if (tick++ % 6 === 0) loadChart();
+    if (tick++ % 10 === 0) loadChart();
     if ($("notice").classList.contains("err") && !busy) { $("notice").className = "notice"; $("notice").textContent = ""; }
   } catch (err) { if (err.message !== "Log opnieuw in.") { $("notice").className = "notice err"; $("notice").textContent = err.message; } }
 }
 
 (async () => {
   try { if (await session()) refresh(); } catch (err) { $("notice").className = "notice err"; $("notice").textContent = err.message; }
-  setInterval(() => { if (!$("login").classList.contains("show") && document.visibilityState === "visible") refresh(); }, 5000);
+  setInterval(() => { if (!$("login").classList.contains("show") && document.visibilityState === "visible") refresh(); }, 3000);
 })();
 </script>
 </body>
