@@ -5,6 +5,7 @@ on:
       url:  { description: "Webadres van het dashboard", default: "https://46-101-189-172.sslip.io" }
       naam: { description: "Naam van de app", default: "VIP IDO GOLD" }
       id:   { description: "App-id (klein, zonder spaties)", default: "nl.ido.gold" }
+      icoon: { description: "Icoon: goud, aandelen of crypto", default: "goud" }
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,6 +17,8 @@ jobs:
         run: yes | sdkmanager --licenses > /dev/null || true
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.9" }
+      - name: Kies het icoon
+        run: cp "android/icons/${{ inputs.icoon || 'goud' }}.png" android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
       - name: Bouw de APK
         working-directory: android
         run: gradle --no-daemon assembleDebug -PappUrl="${{ inputs.url || 'https://46-101-189-172.sslip.io' }}" -PappName="${{ inputs.naam || 'VIP IDO GOLD' }}" -PappId="${{ inputs.id || 'nl.ido.gold' }}"
