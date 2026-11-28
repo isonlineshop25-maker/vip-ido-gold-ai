@@ -438,7 +438,9 @@ class Handler(BaseHTTPRequestHandler):
                         return self.send_json(200, readiness.report(db, sid, state["settings"]["provider"], now))
                     if path == "/api/bots":
                         provider = state["settings"]["provider"]
-                        return self.send_json(200, scores.report(db, sid, provider, now, latest_round(db, sid, provider)))
+                        total = db.execute("SELECT coalesce(sum(json_extract(data,'$.pnl')),0) FROM trades WHERE account=? AND closed IS NOT NULL", (sid,)).fetchone()[0]
+                        return self.send_json(200, dict(scores.report(db, sid, provider, now, latest_round(db, sid, provider)),
+                                                        race=scores.race(db, sid, provider, total, 100_000)))
                     if path == "/api/advisor-activity":
                         provider = state["settings"]["provider"]
                         data = coordinator.activity(db, sid, provider, latest_round(db, sid, provider))

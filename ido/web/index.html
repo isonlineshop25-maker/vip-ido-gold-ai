@@ -81,6 +81,15 @@ button, input { font: inherit; color: inherit; }
 .ranges { display: flex; gap: 4px; }
 .ranges button { background: transparent; border: 1px solid var(--seam); border-radius: 8px; padding: 3px 10px; font-size: 13px; cursor: pointer; color: var(--muted); }
 .ranges button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-pale); }
+.race { display: grid; gap: 9px; margin-top: 10px; }
+.runner { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; font-size: 13px; }
+.runner .pos { color: #A89F8C; font-variant-numeric: tabular-nums; }
+.runner b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.runner.bot b { color: #E3B54A; }
+.runner .lane { grid-column: 2 / -1; height: 8px; border-radius: 4px; background: rgba(227,181,74,.12); overflow: hidden; }
+.runner .lane i { display: block; height: 100%; min-width: 2px; border-radius: 4px; background: #5FBF8A; transition: width .8s ease; }
+.runner.bot .lane i { background: #E3B54A; }
+.runner.neg .lane i { background: #E0675A; }
 canvas { display: block; width: 100%; height: 250px; margin-top: 10px; }
 .feed { font-size: 12px; color: var(--muted); margin: 4px 0 4px; }
 
@@ -231,6 +240,12 @@ h2 { font-size: 17px; margin: 0 0 4px; font-weight: 700; color: var(--gold-pale)
     </section>
 
     <section class="span">
+      <h2>Race naar 100.000 <span id="racePct" class="sub" style="margin-left:8px">0%</span></h2>
+      <p class="sub">Voor de grap: wie tikt als eerste 100.000 dollar winst aan? De engine met zijn oefenresultaat, en elke bot alsof hij 1.000 dollar goud op elke eigen stem zette (na kosten). Dit verandert niks aan hoe de engine handelt.</p>
+      <div class="panel"><div class="race" id="race"></div></div>
+    </section>
+
+    <section class="span">
       <h2>De raad van bots</h2>
       <p class="sub" id="councilSub">Elke stem wordt 5 minuten later nagekeken. Een stem telt alleen als goed als de koers genoeg bewoog om de kosten terug te verdienen. Wie vaker gelijk heeft, krijgt een zwaardere stem.</p>
       <div class="panel" id="bots"><div class="empty">Bots laden…</div></div>
@@ -376,7 +391,20 @@ function botRow(b, guard) {
     <span class="bot-role">${esc(b.role)}</span>${weight}${b.evidence ? `<span class="evidence">${esc(b.evidence)}</span>` : ""}</div>`;
 }
 
+function renderRace(r) {
+  if (!r) return;
+  const all = [{ name: "De engine zelf", pnl: r.bot, bot: true }, ...r.runners];
+  const best = Math.max(0, ...all.map(x => x.pnl));
+  $("racePct").textContent = Math.max(0, Math.min(100, best / r.goal * 100)).toLocaleString("nl-NL", { maximumFractionDigits: 2 }) + "%";
+  all.sort((a, b) => b.pnl - a.pnl);
+  $("race").innerHTML = all.map((x, i) => {
+    const w = Math.max(0, Math.min(100, x.pnl / r.goal * 100));
+    return `<div class="runner${x.bot ? " bot" : ""}${x.pnl < 0 ? " neg" : ""}"><span class="pos">${i + 1}</span><b>${esc(x.name)}</b>
+      <span class="num ${tone(x.pnl)}">${x.pnl >= 0 ? "$" : "-$"}${num(Math.abs(x.pnl))}</span><div class="lane"><i style="width:${x.pnl < 0 ? 0 : w}%"></i></div></div>`;
+  }).join("");
+}
 function renderBots(r) {
+  renderRace(r.race);
   $("bots").innerHTML = r.bots.map(b => botRow(b, false)).join("");
   $("guards").innerHTML = r.guards.map(b => botRow(b, true)).join("");
   $("councilSub").textContent = `Elke stem wordt ${r.horizonMinutes} minuten later nagekeken. Een stem telt alleen als goed als de koers genoeg bewoog om de kosten terug te verdienen. Wie vaker gelijk heeft, krijgt een zwaardere stem. Alleen de laatste ${r.windowDays} dagen tellen.`;

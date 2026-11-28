@@ -79,3 +79,18 @@ class BigTrendTimingTests(unittest.TestCase):
         self.assertEqual(bigtrend(hours)["vote"], "BUY")                  # strict: unchanged
         self.assertEqual(bigtrend(hours, rising)["vote"], "BUY")
         self.assertEqual(bigtrend(hours, falling)["vote"], "WAIT")
+
+
+class RaceTests(unittest.TestCase):
+    def test_race_counts_checked_votes_with_costs(self):
+        import sqlite3, advisor_scores as sc
+        db = sqlite3.connect(":memory:"); db.row_factory = sqlite3.Row
+        sc.init_scores(db)
+        db.execute("INSERT INTO advisor_votes VALUES('a','p','trend',1,2,'BUY',2000,1,1,2010,1)")
+        db.execute("INSERT INTO advisor_votes VALUES('a','p','momentum',1,2,'SELL',2000,1,1,2010,0)")
+        r = sc.race(db, "a", "p", -5, 100_000)
+        by = {x["agent"]: x["pnl"] for x in r["runners"]}
+        self.assertAlmostEqual(by["trend"], (10 - 1) / 2000 * 1000, places=2)
+        self.assertAlmostEqual(by["momentum"], (-10 - 1) / 2000 * 1000, places=2)
+        self.assertEqual(r["bot"], -5)
+        self.assertEqual(r["runners"][0]["agent"], "trend")

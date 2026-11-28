@@ -121,3 +121,20 @@ def report(db, sid, provider, now, latest_round=None):
     return dict(horizonMinutes=HORIZON // 60, windowDays=WINDOW // 86400, bots=bots, guards=guards,
                 recommendation=(latest_round or {}).get("recommendation"),
                 reason=(latest_round or {}).get("reason"), roundTime=(latest_round or {}).get("time"))
+
+
+RACE_STAKE = 1000.0      # every checked vote counts as if the bot had put 1,000 USD of gold on it (after costs)
+
+
+def race(db, sid, provider, bot_total, goal):
+    """Just for fun: which bot reaches the goal first with its own virtual votes, next to the real (paper) result of the engine.
+    Display only: it never changes how the engine trades or how much it risks."""
+    rows = {r["agent"]: r for r in db.execute("""
+        SELECT agent, count(*) AS n,
+               coalesce(sum(((CASE side WHEN 'BUY' THEN exit-entry ELSE entry-exit END) - cost) / entry), 0) * ? AS pnl
+        FROM advisor_votes WHERE account=? AND provider=? AND hit IS NOT NULL AND exit IS NOT NULL AND entry > 0 GROUP BY agent
+        """, (RACE_STAKE, sid, provider))}
+    runners = [dict(agent=a, name=NAMES[a], pnl=round(rows[a]["pnl"], 2) if a in rows else 0.0, votes=rows[a]["n"] if a in rows else 0)
+               for a in DIRECTIONAL]
+    runners.sort(key=lambda r: r["pnl"], reverse=True)
+    return dict(goal=goal, bot=round(bot_total or 0, 2), stake=RACE_STAKE, runners=runners)
